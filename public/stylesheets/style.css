@@ -1,0 +1,113 @@
+* {
+    padding: 0;
+    margin: 0;
+}
+
+body {
+    background-color: #1A1D22;
+    height: 100vh;
+}
+
+.main-container {
+    /* default font and color */
+    font-family: "Poppins", sans-serif;
+    font-weight: 700;
+    font-style: normal;
+    color: #10F2D0;
+    /* */
+
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-container .left-content  {
+    align-self: center;
+    padding-left: 2rem;
+    width: 65%;
+}
+
+.main-container .left-content h3 {
+    font-size: 5rem;
+}
+
+.main-container .left-content p {
+    font-size: 2rem;
+}
+
+.main-container .right-content {
+    background-color: #282F37;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 30%;
+}
+
+.main-container .right-content header {
+    padding: 0 0 1rem 0;
+    text-align: center;
+}
+
+.main-container .right-content header h1 {
+    font-size: 2rem;
+}
+
+.main-container .right-content .components {
+    text-align: center;
+}
+
+.main-container .right-content .components input {
+    background-color: #35404D;
+    border: none;
+    margin-bottom: 10px;
+    padding: 10px;
+    width: 250px;
+    border-radius: 5px;
+    color:#10F2D0;
+}
+
+.main-container .right-content .components #submit {
+    padding: 15px;
+    margin: 1rem;
+
+    background-color: #2AA8E1;
+    color: #1A1D22;
+
+    border: none;
+
+    border-radius: 10px;
+    width: 150px;
+}
+
+.main-container .right-content .components #submit:hover {
+    background-color: #6fd1ff;
+}
+
+.main-container .right-content .components #submit:active {
+    opacity: .8;
+}
+
+.main-container .right-content .components p {
+    font-weight: 400;
+    font-size: .8rem;
+}
+
+.main-container .right-content .components p button {
+    background-color: transparent;
+    border: none;
+    color: #2AA8E1;
+}
+
+@media only screen and (max-width: 1000px) {
+    .main-container {
+        justify-content: center;
+    }
+
+    .main-container .right-content {
+        width: 100%;
+    }
+
+    .main-container .left-content {
+        display: none;
+    }
+}

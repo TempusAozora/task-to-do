@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>WELCOME, <%= user %> </h1>
+    <button onclick="log_out()">Log out</button>
+
+    <script type="text/javascript">
+        function log_out() {
+            document.cookie = "SESSION_ID=; expires=" + new Date(0).toUTCString() + "; path=/;";
+            window.location.href = "/login"
+        }
+    </script>
+</body>
+   
+</html>
