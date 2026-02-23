@@ -166,7 +166,7 @@ app.post('/login', check_user_input_length, async (req, res, next) => {
 
         if (is_matched) {
             let session_id = crypto.randomBytes(48).toString('base64'); // 64 characters
-            await sql_connection.query("CALL update_session_id(?,?);", [user_id, session_id]);
+            await sql_connection.query("UPDATE users SET session_id = ?, last_login = NOW() WHERE user_id = ?;", [session_id, user_id]);
             res.status(200).json({success: true, cookie: session_id});
         } else {
             res.status(400).json({success: false, message: "Incorrect username or password."});
