@@ -4,8 +4,7 @@ const mysql2 = require('mysql2/promise')
 const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
-
-require('dotenv').config()
+// require('dotenv').config()
 
 const MS_TO_DAY = 86400000; // convert day to milliseconds
 
