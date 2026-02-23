@@ -39,7 +39,7 @@ const sql_connection = mysql2.createPool({
   password: process.env.DB_PASSWORD,
 
   multipleStatements: true,
-  database: "test_schema"
+  database: process.env.DB_DBNAME
 });
 
 function getCookie(cookies, name) {
