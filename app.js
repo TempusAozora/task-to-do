@@ -39,7 +39,7 @@ const sql_connection = mysql2.createPool({
 
   multipleStatements: true,
   database: process.env.DB_DBNAME,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: true }
 });
 
 function getCookie(cookies, name) {
