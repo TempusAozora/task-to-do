@@ -5,6 +5,8 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 
+require('dotenv').config()
+
 const MS_TO_DAY = 86400000; // convert day to milliseconds
 
 const port = 3000;
@@ -32,9 +34,9 @@ app.use((err, req, res, next) => {
 
 // Connect app to sql database
 const sql_connection = mysql2.createPool({
-  host: "localhost",
-  user: "root",
-  password: "ujwd28YFUD{;);",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
 
   multipleStatements: true,
   database: "test_schema"
