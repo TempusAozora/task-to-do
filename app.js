@@ -23,23 +23,23 @@ app.use(express.urlencoded({extended: true}));
 app.use(express.static(path.join(__dirname, "public")));
 
 // setup view engine
-app.set("view engine", "ejs");
+app.set("view engine", "pug");
 
 // 500 Error handler
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: "Something went wrong" });
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
 });
 
 // Connect app to sql database
 const sql_connection = mysql2.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST,
+    user: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
 
-  multipleStatements: true,
-  database: process.env.DB_DBNAME,
-  ssl: { rejectUnauthorized: false }
+    multipleStatements: true,
+    database: process.env.DB_DBNAME,
+    ssl: { rejectUnauthorized: false }
 });
 
 function getCookie(cookies, name) {
@@ -178,10 +178,10 @@ app.post('/login', check_user_input_length, async (req, res, next) => {
 
 // 404 not found page.
 app.all('/*catchall', (req, res) => {
-  res.status(404).sendFile(path.join(__dirname, "public", "not_found.html"));;
+    res.status(404).sendFile(path.join(__dirname, "public", "not_found.html"));;
 });
 
 // LISTEN
 app.listen(port, "0.0.0.0", () => {
-  console.log(`app is running on port ${port}`);
+    console.log(`app is running on port ${port}`);
 });

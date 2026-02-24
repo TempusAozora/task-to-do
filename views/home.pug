@@ -1,0 +1,110 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Home
+        link(rel="stylesheet", href="/stylesheets/Home.css")
+
+        link(rel="preconnect", href="https://fonts.googleapis.com")
+        link(rel="preconnect", href="https://fonts.gstatic.com", crossorigin)
+        link(href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap", rel="stylesheet")
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    body
+        section.container
+            header 
+                div.header-content
+                    h1.header-text TASK TODO
+                    button.logout-button(onclick="logout()") 
+                        i.fa-solid.fa-arrow-right-from-bracket
+                        |   Logout
+            div.main-container 
+                div.left-content
+                        div.profile-icon
+                            i.fa-solid.fa-user
+                        div.info-container
+                            button.edit-profile(onclick="edit-profile()")
+                                i.fa-solid.fa-pencil
+                            h1.username-heading #{user}
+                            p Lorem ipsum dolor sit amet consectetur adipisicing elit. Vero, quisquam quaerat dolorem tenetur modi rem optio aspernatur asperiores reprehenderit enim assumenda suscipit eius quae sit perspiciatis illum itaque id harum!
+                div.right-content
+                    div.task-header
+                        p 
+                        h1.task-header-text TASKS 
+                        button.createTask(onclick="createTask()") Create Task
+                    div.column 
+                        p TITLE
+                        p DESCRIPTION 
+                        p TASK TIME 
+                    div.task-container#taskContainer
+                    div.overlayALL#overlay
+                        div.form-modal
+                            button.close(onclick="closeForm()") 
+                                i.fa-solid.fa-x
+                            div.form
+                                h2 CREATE TASK 
+                                form#taskForm
+                                    div.input-group
+                                        label(for="taskName") TASK NAME
+                                        input#taskName(type="text" required placeholder="Enter task name")
+                                    div.input-group
+                                        label(for="taskDesc") TASK DESCRIPTION
+                                        textarea#taskDesc(rows="3" required)
+                                    div.input-group
+                                        label(for="taskTime") TASK TIME
+                                        input#taskTime(type="time" required)
+                                    button.submit-btn(type="submit") Add Task
+
+        script. 
+            function logout() {
+                document.cookie = "SESSION_ID=; expires=" + new Date(0).toUTCString() + "; path=/;";
+                window.location.href = '/login'
+            }
+
+            function createTask() {
+                document.getElementById("overlay").style.display = "flex";
+            }
+
+            function closeForm(){
+                document.getElementById("overlay").style.display = "none";
+            }
+            
+            document.getElementById("taskForm").addEventListener("submit", function(e) {
+                e.preventDefault();
+
+                const name = document.getElementById("taskName").value;
+                const desc = document.getElementById("taskDesc").value;
+                const time = document.getElementById("taskTime").value;
+
+                const container = document.getElementById('taskContainer');
+                const taskDiv = document.createElement('div')
+                taskDiv.className = "task"
+
+                const title = document.createElement('h1');
+                title.className = "taskTitle";
+                title.textContent = name;
+
+                const descript = document.createElement('p');
+                descript.className = "taskDescript";
+                descript.textContent = desc; 
+
+                const Time = document.createElement('p');
+                Time.className = "taskTime";
+                Time.textContent = time;
+
+                taskDiv.appendChild(title);
+                taskDiv.appendChild(descript);
+                taskDiv.appendChild(Time);
+                
+                container.appendChild(taskDiv);
+
+                document.getElementById("taskForm").reset();
+
+                console.log(name, desc, time);
+
+                closeForm();
+            });
+
+
