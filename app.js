@@ -4,11 +4,11 @@ const mysql2 = require('mysql2/promise')
 const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const WebSocket = require('ws');
+
 // require('dotenv').config()
 
 const MS_TO_DAY = 86400000; // convert day to milliseconds
-
-const port = 3000;
 
 const salt_rounds = 12;
 
@@ -48,37 +48,44 @@ function getCookie(cookies, name) {
     if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-function Authorize(authorization_type) {
+async function CheckSessionID(req) {
+    try {
+        const session_id = getCookie(req.headers.cookie, "SESSION_ID");
+        const get_userdata_query = "SELECT * FROM users WHERE session_id = ?;";
+        const [[userdata]] = await sql_connection.query(get_userdata_query, [session_id]);
+        
+        if (!userdata) return [false, null]
+
+        const last_login = new Date(userdata.last_login);
+        const now = new Date();
+
+        const diffTime = Math.abs(now - last_login);
+        const diffDays = Math.floor(diffTime / MS_TO_DAY); // convert millisecond to day
+
+        if (diffDays < 1) {
+            return [true, userdata];
+        }
+
+        return [false, null];
+    } catch (err) {
+        next(err);
+    }   
+}
+
+function Authenticate(authentication_type) {
     return async function (req, res, next) {
         try {
-            const session_id = getCookie(req.headers.cookie, "SESSION_ID");
+            const [is_session_id_valid, userdata] = await CheckSessionID(req)
 
-            const get_last_login_query = "SELECT last_login FROM users WHERE session_id = ?;";
-            const [[last_login_data]] = await sql_connection.query(get_last_login_query, [session_id]);
-            
-            if (!last_login_data) { // if last_login_data does not exist. Redirect.
-                if (authorization_type === "enter_info") {
-                    return next();
-                }
+            if (!is_session_id_valid && authentication_type === "enter_info") { // invalid, logging in
+                return next();
+            } else if (is_session_id_valid && authentication_type === "enter_info") { // valid, logging in
+                return res.redirect(`/home`);
+            } else if (!is_session_id_valid && authentication_type !== "enter_info") { // invalid, not logging in
                 return res.redirect(`/login`);
-            }
-
-            const last_login = new Date(Object.values(last_login_data)[0]);
-            const now = new Date();
-
-            const diffTime = Math.abs(now - last_login);
-            const diffDays = Math.floor(diffTime / MS_TO_DAY); // convert millisecond to day
-
-            if (diffDays < 1) {
-                if (authorization_type === "enter_info") {
-                    return res.redirect(`/home`);
-                }
-                return next();  
-            } else {
-                if (authorization_type === "enter_info") {
-                    return next();
-                }
-                return res.redirect(`/login`)
+            } else { // valid, not logging in
+                req.userdata = userdata;
+                return next();
             }
         } catch(err) {
             next(err);
@@ -113,29 +120,24 @@ async function check_if_username_taken(req, res, next) {
 
 // Connect app to client
 // GET
-app.get('/', Authorize(), (req, res) => {
+app.get('/', Authenticate(), (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.redirect(`/home`);
 });
 
-app.get('/login', Authorize("enter_info"), (req, res) => {
+app.get('/login', Authenticate("enter_info"), (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'public', 'login.html'))
 });
 
-app.get('/register', Authorize("enter_info"), (req, res) => {
+app.get('/register', Authenticate("enter_info"), (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
-app.get('/home', Authorize(), async (req, res) => {
+app.get('/home', Authenticate(), async (req, res) => {
     res.set('Cache-Control', 'no-store');
-    const session_id = getCookie(req.headers.cookie, "SESSION_ID");
-
-    const [[user_data]] = await sql_connection.query("SELECT username FROM users WHERE session_id = ?", [session_id]);
-    const username = Object.values(user_data)[0];
-
-    res.render('home', {user: username});
+    res.render('home', {user: req.userdata.username});
 });
 
 // POST
@@ -182,6 +184,31 @@ app.all('/*catchall', (req, res) => {
 });
 
 // LISTEN
-app.listen(port, "0.0.0.0", () => {
-    console.log(`app is running on port ${port}`);
+const server = app.listen(process.env.HTTP_PORT, "0.0.0.0", () => {
+    console.log(`app is running on port ${process.env.HTTP_PORT}`);
 });
+
+// Web socket
+const wss = new WebSocket.Server({noServer: true});
+
+wss.on('connection', function(ws, req) {
+    ws.on('error', console.error);
+
+    console.log(req.userdata.username + " client connected");
+    ws.on('message', msg => {
+        console.log(msg.toString() + " from " + req.userdata.username);
+    })
+})
+
+server.on('upgrade', async function(req, socket, head) {
+    const [is_session_id_valid, userdata] = await CheckSessionID(req)
+
+    if (is_session_id_valid) { // if session id is valid and at home page
+        wss.handleUpgrade(req, socket, head, (ws) => {
+            req.userdata = userdata
+            wss.emit('connection', ws, req); // accept connection
+        });
+    } else {
+        socket.destroy()
+    }
+})

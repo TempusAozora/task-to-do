@@ -57,54 +57,6 @@ html(lang="en")
                                         input#taskTime(type="time" required)
                                     button.submit-btn(type="submit") Add Task
 
-        script. 
-            function logout() {
-                document.cookie = "SESSION_ID=; expires=" + new Date(0).toUTCString() + "; path=/;";
-                window.location.href = '/login'
-            }
-
-            function createTask() {
-                document.getElementById("overlay").style.display = "flex";
-            }
-
-            function closeForm(){
-                document.getElementById("overlay").style.display = "none";
-            }
-            
-            document.getElementById("taskForm").addEventListener("submit", function(e) {
-                e.preventDefault();
-
-                const name = document.getElementById("taskName").value;
-                const desc = document.getElementById("taskDesc").value;
-                const time = document.getElementById("taskTime").value;
-
-                const container = document.getElementById('taskContainer');
-                const taskDiv = document.createElement('div')
-                taskDiv.className = "task"
-
-                const title = document.createElement('h1');
-                title.className = "taskTitle";
-                title.textContent = name;
-
-                const descript = document.createElement('p');
-                descript.className = "taskDescript";
-                descript.textContent = desc; 
-
-                const Time = document.createElement('p');
-                Time.className = "taskTime";
-                Time.textContent = time;
-
-                taskDiv.appendChild(title);
-                taskDiv.appendChild(descript);
-                taskDiv.appendChild(Time);
-                
-                container.appendChild(taskDiv);
-
-                document.getElementById("taskForm").reset();
-
-                console.log(name, desc, time);
-
-                closeForm();
-            });
+        script(src='/javascript/home.js')
 
 
