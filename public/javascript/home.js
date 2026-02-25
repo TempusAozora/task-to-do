@@ -60,12 +60,25 @@ document.getElementById("taskForm").addEventListener("submit", function(e) {
     const desc = document.getElementById("taskDesc").value;
     const time = document.getElementById("taskTime").value;
 
-    const new_task = new Task(name, desc, time);
-    const new_task_data = new_task.serialize()
+    if (name.length > 20) {
+        alert("TITLE to long max length: 20 character");
 
-    socket.send("Task created")
-    
-    document.getElementById("taskForm").reset();
+        document.getElementById("taskForm").reset();
+        closeForm();
 
-    closeForm();
+    }else if (name.trim() === "") {
+        alert("Please input the fields")
+
+        document.getElementById("taskForm").reset();
+        
+    }else{
+        const newTask = new Task(name, desc, time);
+        const new_task_data = newTask.serialize();
+
+        socket.send("Task Created");
+        
+        document.getElementById("taskForm").reset();
+
+        closeForm();
+    }
 })
