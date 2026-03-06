@@ -1,84 +1,216 @@
-const loc = window.location;
-let new_uri = (loc.protocol === "https:") ? "wss:" : "ws:"
+class web_socket {
+    #socket;
+    #callbacks;
+    
+    constructor(uri) {
+        this.#socket = new WebSocket(uri);
+        this.#callbacks = {};
 
-new_uri += "//" + loc.host + loc.pathname;
-const socket = new WebSocket(new_uri);
+        this.#socket.onopen = () => console.log("Connected to websocket");
+        this.#socket.onclose = () => console.log("Disconnected to websocket");
+        this.#socket.onerror = (err) => console.error("Error:", err);
+        this.#socket.onmessage = (event) => {
+            const { type, payload } = JSON.parse(event.data);
+            if (this.#callbacks[type]) {
+                this.#callbacks[type].forEach(fn => fn(payload))
+            }
+        }
+    }
 
-function logout() {
-    document.cookie = "SESSION_ID=; expires=" + new Date(0).toUTCString() + "; path=/;";
-    window.location.href = '/login'
+    onmessage(type, callback) {
+        if (!this.#callbacks[type]) this.#callbacks[type] = [];
+        this.#callbacks[type].push(callback)
+    }
+
+    send(type, payload) {
+        if (this.#socket?.readyState === WebSocket.OPEN) {
+            this.#socket.send(JSON.stringify({type, payload}));
+        } else {
+            console.error("failed to send in websocket.\nType: " + type + "\nsocket ready state: " + this.#socket?.readyState)
+        }
+    }
 }
 
-function createTask() {
-    document.getElementById("overlay").style.display = "flex";
-}
+class StopWatch {
+    #timestampTime;
+    #elapsed;
+    #activated;
+    #timer;
+    #startTime;
 
-function closeForm() {
-    document.getElementById("overlay").style.display = "none";
-}
+    constructor(set_time=0) {
+        this.#timestampTime = set_time // changes when stopwatch is stopped
+        this.#elapsed = 0; // updates every .1 seconds from current date - time when stopwatch is started
+        this.#activated = false;
+    }
 
-let TaskIDArray = []
+    toggle(fn) {
+        this.#activated = !this.#activated;
+        if (this.#activated) {
+            this.#start(fn)
+        } else {
+            this.#stop()
+        }
+    }
+
+    getCurrentTime(decimals=0) {
+        if (decimals <= 0) {
+            return Math.floor(this.#timestampTime + this.#elapsed)
+        } else {
+            return Math.floor((this.#timestampTime + this.#elapsed) * (10 ** decimals) ) / (10 ** decimals)
+        }
+    }
+
+    #start(fn) {
+        this.#startTime = new Date()
+        this.#timer = window.setInterval(() => {
+            this.#elapsed = ((new Date())-this.#startTime)/1000;
+            fn()
+        }, 100)
+    }
+
+    #stop() {
+        this.#timestampTime += this.#elapsed
+            this.#elapsed = 0;
+        window.clearInterval(this.#timer)
+    }
+}
 
 class Task {
     #elementCreator(type, className, textContent)  {
         const e = document.createElement(type)
-        e.className = className
-        if (textContent) {e.textContent = textContent}
+        
+        if (className !== null) {e.className = className}
+        if (textContent !== null) {e.textContent = textContent}
+
         return e
     }
 
-    constructor(title, desc, time=0) {
+    #append(children, parent) {
+        children.forEach(child => {
+            parent.appendChild(child);
+        })
+    }
+
+    #setupHTML(name, desc, time) {
         const container = document.getElementById('taskContainer');
         this.div = this.#elementCreator('div', 'task');
-        
-        const title_ = this.#elementCreator('h1', 'taskTitle', title)
-        const description = this.#elementCreator('p', 'taskDescript', desc)
-        const elapsed_time = this.#elementCreator('p', 'taskTime', time)
 
-        this.div.appendChild(title_);
-        this.div.appendChild(description);
-        this.div.appendChild(elapsed_time);
+        const name_ = this.#elementCreator('h1', 'taskTitle truncate', name)
+        const description = this.#elementCreator('p', 'taskDescription truncate', desc)
+        const progress_bar = this.#elementCreator('p', 'progress')
+        const taskTime = this.#elementCreator('div', 'taskTime')
+
+        this.elapsedTime = this.#elementCreator('div', null, timeToStr(Math.floor(time)))
+        this.play_button = this.#elementCreator('i', "fa-solid")
+
+        this.#append([name_, description, progress_bar, taskTime], this.div)
+        this.#append([this.play_button, this.elapsedTime], taskTime)
         container.appendChild(this.div);
-    }
+    };
 
-    serialize() {
-        const childElements = this.div.children;
+    constructor(name, desc, time=0, uuid, is_running=false) {
+        this.uuid = uuid;
 
-        let obj = {}
-        for (const element of childElements) {
-            obj[element.className] = element.innerText;
+        this.#setupHTML(name, desc, time)
+
+        this.stopwatch = new StopWatch(time)
+        this.play_button.classList.toggle("fa-play")
+        if (is_running) {
+            this.toggle();
         }
+        
+        this.play_button.addEventListener("click", ()=>{
+            socket.send("toggleTask", {uuid: this.uuid})
+        });
+    };
 
-        return obj
-    }
-}
+    toggle() {
+        this.play_button.classList.toggle("fa-play")
+        this.play_button.classList.toggle("fa-pause")
 
-document.getElementById("taskForm").addEventListener("submit", function(e) {
+        this.stopwatch.toggle(() => {
+            this.elapsedTime.innerText = timeToStr(this.stopwatch.getCurrentTime());
+        })
+    };
+};
+
+function logout() {
+    document.cookie = "SESSION_ID=; expires=" + new Date(0).toUTCString() + "; path=/;";
+    window.location.href = '/login';
+};
+
+function createTask() {
+    document.getElementById("overlay").style.display = "flex";
+};
+
+function closeForm() {
+    document.getElementById("overlay").style.display = "none";
+};
+
+function timeToStr(time) {
+    let second = time % 60;
+    time = Math.floor(time / 60);
+
+    let minute = time % 60;
+    time = Math.floor(time / 60);
+
+    let hour = time % 24;
+
+    const hrStr = String(hour).padStart(2, "0");
+    const minStr = String(minute).padStart(2, "0");
+    const secStr = String(second).padStart(2, "0");
+
+    return `${hrStr}:${minStr}:${secStr}`;
+};
+
+function OnSubmit(e) {
     e.preventDefault();
 
     const name = document.getElementById("taskName").value;
     const desc = document.getElementById("taskDesc").value;
-    const time = document.getElementById("taskTime").value;
 
     if (name.length > 20) {
         alert("TITLE to long max length: 20 character");
-
-        document.getElementById("taskForm").reset();
-        closeForm();
-
-    }else if (name.trim() === "") {
+    } else if (name.trim() === "") {
         alert("Please input the fields")
+    } else {
+        socket.send("createTask", {name: name, description: desc})
+    };
 
-        document.getElementById("taskForm").reset();
-        
-    }else{
-        const newTask = new Task(name, desc, time);
-        const new_task_data = newTask.serialize();
+    document.getElementById("taskForm").reset();
+    closeForm();
+};
 
-        socket.send("Task Created");
-        
-        document.getElementById("taskForm").reset();
+const task_dictionary = {};
 
-        closeForm();
-    }
+const loc = window.location;
+let new_uri = (loc.protocol === "https:") ? "wss:" : "ws:";
+new_uri += "//" + loc.host + loc.pathname;
+
+const socket = new web_socket(new_uri);
+
+socket.onmessage("createTask", (payload) => {
+    console.log("CREATE NEW TASKS")
+    const newTask = new Task(payload.name, payload.description, 0, payload.uuid);
+    task_dictionary[payload.uuid] = newTask;
+});
+
+socket.onmessage("toggleTask", (payload) => {
+    const task = task_dictionary[payload.uuid];
+    task.toggle();
+});
+
+socket.onmessage("error", (payload) => {
+    console.error(payload.error);
 })
+
+// load tasks
+window.task_data.forEach(task => {
+    const newTask = new Task(task.task_name, task.task_description, task.task_time, task.task_uuid, task.is_running);
+    task_dictionary[task.task_uuid] = newTask
+});
+
+document.getElementById("taskForm").addEventListener("submit", function(e) {
+    OnSubmit(e);
+});

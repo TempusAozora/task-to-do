@@ -22,15 +22,7 @@ document.getElementById('submit').onclick = async() => {
 
     if (data.success) {
         window.location.href = '/home';
-
-        const date = new Date();
-        const time = date.getTime();
-        const days = 1;
-
-        var expireTime = time + 1000 * 60 * 60 * 24 * days; // 1 day. Milliseconds * seconds * minutes * hours * days
-        date.setTime(expireTime);
-
-        document.cookie = "SESSION_ID" + "=" + data.cookie + "; expires=" + date.toUTCString() + "; path=/";
+        document.cookie = "SESSION_ID" + "=" + data.cookie + "; expires=" + data.validity_duration + "; path=/";
     } else {
         alert(msg);
         password.value = '';

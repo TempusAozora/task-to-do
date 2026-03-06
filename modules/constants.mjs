@@ -1,0 +1,1 @@
+export const MS_TO_DAY = 86400000; // convert day to milliseconds
