@@ -95,9 +95,9 @@ header .profile-icon-background {
     font-weight: 500;
 }
 
-.right-content{
-    /* border: 1px solid red; */
-}
+/* .right-content{
+    border: 1px solid red;
+} */
 
 .task-header{
     display: grid;
