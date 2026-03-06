@@ -64,7 +64,11 @@ header{
 }
 
 .left-content{
-    border: 1px solid red;
+    /* border: 1px solid red; */
+
+    color: #00F5C4;
+    text-align: center;
+    align-self: center;
 }
 
 .fa-solid.fa-user{
@@ -92,7 +96,7 @@ header .profile-icon-background {
 }
 
 .right-content{
-    border: 1px solid red;
+    /* border: 1px solid red; */
 }
 
 .task-header{
