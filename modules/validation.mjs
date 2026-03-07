@@ -1,12 +1,14 @@
 import { sql_queries, sql_pool } from "./sql_handler.mjs";
 import { MS_TO_DAY } from './constants.mjs';
+import { randomBytes, randomUUID } from 'crypto';
+import { hash, compare } from 'bcrypt';
 
 const min_username_length = 3;
 const max_username_length = 20;
 const min_password_length = 8;
 
-export const salt_rounds = 12;
-export const SESSION_ID_VALIDITY = 3 // days
+const salt_rounds = 12;
+const SESSION_ID_VALIDITY = 3 // days
 
 function getCookie(cookies, name) {
     const value = `; ${cookies}`;
@@ -14,52 +16,45 @@ function getCookie(cookies, name) {
     if (parts.length === 2) return parts.pop().split(';').shift();
 }
 
-export async function CheckSessionID(req) {
+async function getUserData(req, next) {
     try {
         const session_id = getCookie(req.headers.cookie, "SESSION_ID");
         const [[userdata]] = await sql_pool.query(sql_queries.getUserData, [session_id]);
-        if (!userdata) return [false, null]
-
-        const last_login = new Date(userdata.last_login);
-        const now = new Date();
-
-        const diffTime = Math.abs(now - last_login);
-        const diffDays = Math.floor(diffTime / MS_TO_DAY); // convert millisecond to day
-
-        if (diffDays < SESSION_ID_VALIDITY) {
-            return [true, userdata];
+        if (userdata) {
+            const last_login = new Date(userdata.last_login);
+            const now = new Date();
+            const diffDays = Math.floor(Math.abs(now - last_login) / MS_TO_DAY);
+            
+            return (diffDays < SESSION_ID_VALIDITY) ? [true, userdata] : [false, null]
+        } else {
+            return [false, null]
         }
-
-        return [false, null];
     } catch (err) {
-        console.log(err);
+        return next(err);
     }   
 }
 
-export function Authenticate(authentication_type) {
-    return async function (req, res, next) {
-        try {
-            const [is_session_id_valid, userdata] = await CheckSessionID(req)
-
-            if (!is_session_id_valid && authentication_type === "enter_info") { // invalid, logging in
-                return next();
-            } else if (is_session_id_valid && authentication_type === "enter_info") { // valid, logging in
-                return res.redirect(`/home`);
-            } else if (!is_session_id_valid && authentication_type !== "enter_info") { // invalid, not logging in
-                return res.redirect(`/login`);
-            } else { // valid, not logging in
-                req.userdata = userdata;
-                return next();
-            }
-        } catch(err) {
-            next(err);
-        }
+async function Authenticate(req, res, next) {
+    try {
+        const [valid_session_id, userdata] = await getUserData(req, next)
+        return (valid_session_id) ? (req.userdata = userdata, next()) : res.redirect('/login')
+    } catch(err) {
+        next(err);
     }
 }
 
-export function check_user_input_length(req, res, next) {
+async function redirectIfAuth(req, res, next) {
     try {
-        if (req.body.username.length < min_username_length || req.body.username.length  > max_username_length) {
+        const [valid_session_id, userdata] = await getUserData(req, next) || [];
+        return (!valid_session_id) ? next() : (req.userdata = userdata, res.redirect('/home'))
+    } catch(err) {
+        next(err);
+    }
+}
+
+function inputLength(req, res, next) {
+    try {
+        if (req.body.username.length < min_username_length || req.body.username.length > max_username_length) {
             return res.status(400).json({success: false, message: "Username must have a length of 3 to 20 characters."});
         } else if (req.body.password.length < min_password_length) {
             return res.status(400).json({success: false, message: "Password must have a length of 8 or more characters."});
@@ -70,14 +65,61 @@ export function check_user_input_length(req, res, next) {
     }
 }
     
-export async function check_if_username_taken(req, res, next) {
+async function usernameTaken(req, res, next) {
     try {
         let [[username_exists]] = await sql_pool.query(sql_queries.checkUsername, [req.body.username]);
-        if (username_exists) {
-            return res.status(400).json({success: false, message: "Username already exists."});
-        }
-        return next();
+        return (username_exists) ? res.status(400).json({success: false, message: "Username already exists."}) : next();
     } catch(err) {
         next(err);
     }
+}
+
+async function register(req, res, next) {
+    try {
+        let hashed_password = await hash(req.body.password, validation.salt_rounds);
+        await sql_pool.query(sql_queries.registerUser, [req.body.username, hashed_password]);
+        next()
+    } catch(err) {
+        next(err);
+    }
+}
+
+async function login(req, res, next) {
+    try {
+        const [[userdata]] = await sql_pool.query(sql_queries.getPasswordHashed, [req.body.username])
+        if (!userdata) return res.status(400).json({success: false, message: "Incorrect username or password."});
+
+        let db_hashed_password = Object.values(userdata)[0];
+        let user_id = Object.values(userdata)[1];
+
+        let is_matched = await compare(req.body.password, db_hashed_password);
+        if (!is_matched) return res.status(400).json({success: false, message: "Incorrect username or password."});
+
+        let session_id = randomBytes(48).toString('base64'); // 64 characters
+        await sql_pool.query(sql_queries.updateSessionID, [session_id, user_id]);
+
+        const expireDate = new Date();
+        const time = expireDate.getTime();
+        const expireTime = time + MS_TO_DAY * SESSION_ID_VALIDITY; // Milliseconds * seconds * minutes * hours * days
+        expireDate.setTime(expireTime);
+
+        req.session_id = session_id
+        req.validity_duration = expireDate.toUTCString()
+        next()
+    } catch(err) {
+        next(err);
+    }
+}
+
+export default {
+    getUserData, 
+    Authenticate,
+    redirectIfAuth,
+    inputLength, 
+    usernameTaken,
+    login,
+    register,
+
+    SESSION_ID_VALIDITY,
+    salt_rounds
 }

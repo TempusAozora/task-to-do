@@ -1,5 +1,5 @@
 import { createPool } from 'mysql2/promise';
-// import 'dotenv/config' // for local testing
+import 'dotenv/config'
 
 // Connect app to sql database
 export const sql_pool = createPool({

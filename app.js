@@ -1,27 +1,17 @@
 // node modules
 import express, { json, urlencoded } from 'express';
 import path, { join } from 'path';
-import { randomBytes, randomUUID } from 'crypto';
-import { hash, compare } from 'bcrypt';
 import { WebSocketServer } from 'ws';
 
+// other modules
+import validation from './modules/validation.mjs';
+import { sql_queries, sql_pool } from './modules/sql_handler.mjs';
+
+// get public directory
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const public_dir = join(__dirname, "public")
-
-// other modules
-import { CheckSessionID, 
-         Authenticate, 
-         check_user_input_length, 
-         check_if_username_taken, 
-         SESSION_ID_VALIDITY,
-         salt_rounds
-        } from './modules/validation.mjs';
-
-import { MS_TO_DAY } from './modules/constants.mjs';
-import { sql_queries, sql_pool } from './modules/sql_handler.mjs';
-import { create } from 'domain';
 
 const app = express();
 
@@ -30,82 +20,52 @@ app.use(urlencoded({extended: true}));
 app.use(express.static('public')); // get static files
 app.set("view engine", "pug"); // setup view/dynamic files
 
-// 500 Error handler
-app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
+// cache-control, no-store
+app.use((req, res, next) => {
+  if (req.method === 'GET') {res.set('Cache-Control', 'no-store');}
+  next();
 });
 
 // GET
-app.get('/', Authenticate(), (req, res) => {
-    res.set('Cache-Control', 'no-store');
+app.get('/', validation.redirectIfAuth, (req, res) => {
     res.redirect(`/home`);
 });
 
-app.get('/login', Authenticate("enter_info"), (req, res) => {
-    res.set('Cache-Control', 'no-store');
+app.get('/login', validation.Authenticate, (req, res) => {
     res.sendFile('login.html', {root: public_dir})
 });
 
-app.get('/register', Authenticate("enter_info"), (req, res) => {
-    res.set('Cache-Control', 'no-store');
+app.get('/register', validation.Authenticate, (req, res) => {
     res.sendFile('register.html', {root: public_dir});
 });
 
-app.get('/home', Authenticate(), async (req, res) => {
-    res.set('Cache-Control', 'no-store');
-
-    let [task_data] = await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id]);
-    res.render('home', {user: req.userdata.username, task_data: task_data});
+app.get('/home', validation.redirectIfAuth, async (req, res) => {
+    try {
+        let [task_data] = await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id]);
+        res.render('home', {user: req.userdata.username, task_data: task_data});
+    } catch(err) {
+        next(err);
+    }
 });
 
 // POST
-app.post('/register', check_user_input_length, check_if_username_taken, async (req, res, next) => {
-    try {
-        let hashed_password = await hash(req.body.password, salt_rounds);
-        await sql_pool.query(sql_queries.registerUser, [req.body.username, hashed_password]);
-
-        res.status(200).json({success: true});
-    } catch(err) {
-        next(err);
-    }
+app.post('/register', validation.inputLength, validation.usernameTaken, validation.register, async (req, res, next) => {
+    res.status(200).json({success: true});
 })
 
-app.post('/login', check_user_input_length, async (req, res, next) => {
-    try {
-        const [[user_data]] = await sql_pool.query(sql_queries.getPasswordHashed, [req.body.username])
-        if (!user_data) {
-            return res.status(400).json({success: false, message: "Incorrect username or password."});
-        }
-
-        let db_hashed_password = Object.values(user_data)[0];
-        let user_id = Object.values(user_data)[1];
-
-        let is_matched = await compare(req.body.password, db_hashed_password);
-
-        if (is_matched) {
-            let session_id = randomBytes(48).toString('base64'); // 64 characters
-            await sql_pool.query(sql_queries.updateSessionID, [session_id, user_id]);
-
-            const expireDate = new Date();
-            const time = expireDate.getTime();
-            const expireTime = time + MS_TO_DAY * SESSION_ID_VALIDITY; // Milliseconds * seconds * minutes * hours * days
-            expireDate.setTime(expireTime);
-
-            console.log(expireDate.toUTCString())
-
-            res.status(200).json({success: true, cookie: session_id, validity_duration: expireDate.toUTCString()});
-        } else {
-            res.status(400).json({success: false, message: "Incorrect username or password."});
-        }
-    } catch(err) {
-        next(err);
-    }
+app.post('/login', validation.inputLength, validation.login, async (req, res, next) => {
+    res.status(200).json({success: true, cookie: req.session_id, validity_duration: req.validity_duration});
 });
 
 // 404 not found page.
 app.all('/*catchall', (req, res) => {
     res.status(404).sendFile("not_found.html", {root: public_dir});;
+});
+
+// 500 Error handler
+app.use((err, req, res, next) => {
+    console.error(`TIMESTAMP (UTC): ${(new Date()).toUTCString()}`, err.stack);
+    res.status(500).sendFile('error_page.html', {root: public_dir});
 });
 
 // LISTEN
@@ -155,7 +115,7 @@ wss.on('connection', function(ws, req) {
 })
 
 server.on('upgrade', async function(req, socket, head) {
-    const [is_session_id_valid, userdata] = await CheckSessionID(req)
+    const [is_session_id_valid, userdata] = await validation.getUserData(req)
 
     if (is_session_id_valid) { // if session id is valid and at home page
         wss.handleUpgrade(req, socket, head, (ws) => {
