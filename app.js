@@ -2,6 +2,7 @@
 import express, { json, urlencoded } from 'express';
 import path, { join } from 'path';
 import { WebSocketServer } from 'ws';
+import { randomUUID } from 'crypto';
 
 // other modules
 import validation from './modules/validation.mjs';
@@ -27,19 +28,19 @@ app.use((req, res, next) => {
 });
 
 // GET
-app.get('/', validation.redirectIfAuth, (req, res) => {
+app.get('/', validation.Authenticate, (req, res) => {
     res.redirect(`/home`);
 });
 
-app.get('/login', validation.Authenticate, (req, res) => {
+app.get('/login', validation.redirectIfAuth, (req, res) => {
     res.sendFile('login.html', {root: public_dir})
 });
 
-app.get('/register', validation.Authenticate, (req, res) => {
+app.get('/register', validation.redirectIfAuth, (req, res) => {
     res.sendFile('register.html', {root: public_dir});
 });
 
-app.get('/home', validation.redirectIfAuth, async (req, res) => {
+app.get('/home', validation.Authenticate, async (req, res) => {
     try {
         let [task_data] = await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id]);
         res.render('home', {user: req.userdata.username, task_data: task_data});

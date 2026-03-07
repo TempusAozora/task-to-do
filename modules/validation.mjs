@@ -1,6 +1,6 @@
 import { sql_queries, sql_pool } from "./sql_handler.mjs";
 import { MS_TO_DAY } from './constants.mjs';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes } from 'crypto';
 import { hash, compare } from 'bcrypt';
 
 const min_username_length = 3;
@@ -30,38 +30,30 @@ async function getUserData(req, next) {
             return [false, null]
         }
     } catch (err) {
-        return next(err);
+        next(err);
+        return [false, null, true]
     }   
 }
 
 async function Authenticate(req, res, next) {
-    try {
-        const [valid_session_id, userdata] = await getUserData(req, next)
-        return (valid_session_id) ? (req.userdata = userdata, next()) : res.redirect('/login')
-    } catch(err) {
-        next(err);
-    }
+    const [valid_session_id, userdata, err] = await getUserData(req, next);
+    if (err) return;
+    return (valid_session_id) ? (req.userdata = userdata, next()) : res.redirect('/login')
 }
 
 async function redirectIfAuth(req, res, next) {
-    try {
-        const [valid_session_id, userdata] = await getUserData(req, next) || [];
-        return (!valid_session_id) ? next() : (req.userdata = userdata, res.redirect('/home'))
-    } catch(err) {
-        next(err);
-    }
+    const [valid_session_id, userdata, err] = await getUserData(req, next);
+    if (err) return;
+    return (valid_session_id) ? (req.userdata = userdata, res.redirect('/home')) : next()
 }
 
 function inputLength(req, res, next) {
-    try {
-        if (req.body.username.length < min_username_length || req.body.username.length > max_username_length) {
-            return res.status(400).json({success: false, message: "Username must have a length of 3 to 20 characters."});
-        } else if (req.body.password.length < min_password_length) {
-            return res.status(400).json({success: false, message: "Password must have a length of 8 or more characters."});
-        }
+    if (req.body.username.length < min_username_length || req.body.username.length > max_username_length) {
+        return res.status(400).json({success: false, message: "Username must have a length of 3 to 20 characters."});
+    } else if (req.body.password.length < min_password_length) {
+        return res.status(400).json({success: false, message: "Password must have a length of 8 or more characters."});
+    } else {
         return next();
-    } catch(err) {
-        next(err);
     }
 }
     
@@ -100,7 +92,7 @@ async function login(req, res, next) {
 
         const expireDate = new Date();
         const time = expireDate.getTime();
-        const expireTime = time + MS_TO_DAY * SESSION_ID_VALIDITY; // Milliseconds * seconds * minutes * hours * days
+        const expireTime = time + MS_TO_DAY * SESSION_ID_VALIDITY;
         expireDate.setTime(expireTime);
 
         req.session_id = session_id
