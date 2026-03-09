@@ -19,7 +19,7 @@ function getCookie(cookies, name) {
 async function getUserData(req, next) {
     try {
         const session_id = getCookie(req.headers.cookie, "SESSION_ID");
-        const [[userdata]] = await sql_pool.query(sql_queries.getUserData, [session_id]);
+        const userdata = (await sql_pool.query(sql_queries.getUserData, [session_id])).rows[0];
         if (userdata) {
             const last_login = new Date(userdata.last_login);
             const now = new Date();
@@ -59,7 +59,7 @@ function inputLength(req, res, next) {
     
 async function usernameTaken(req, res, next) {
     try {
-        let [[username_exists]] = await sql_pool.query(sql_queries.checkUsername, [req.body.username]);
+        let username_exists = (await sql_pool.query(sql_queries.checkUsername, [req.body.username])).rows[0];
         return (username_exists) ? res.status(400).json({success: false, message: "Username already exists."}) : next();
     } catch(err) {
         next(err);
@@ -68,7 +68,7 @@ async function usernameTaken(req, res, next) {
 
 async function register(req, res, next) {
     try {
-        let hashed_password = await hash(req.body.password, validation.salt_rounds);
+        let hashed_password = await hash(req.body.password, salt_rounds);
         await sql_pool.query(sql_queries.registerUser, [req.body.username, hashed_password]);
         next()
     } catch(err) {
@@ -78,7 +78,7 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
     try {
-        const [[userdata]] = await sql_pool.query(sql_queries.getPasswordHashed, [req.body.username])
+        const userdata = (await sql_pool.query(sql_queries.getPasswordHashed, [req.body.username])).rows[0];
         if (!userdata) return res.status(400).json({success: false, message: "Incorrect username or password."});
 
         let db_hashed_password = Object.values(userdata)[0];

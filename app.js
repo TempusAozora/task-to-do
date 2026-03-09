@@ -40,9 +40,10 @@ app.get('/register', validation.redirectIfAuth, (req, res) => {
     res.sendFile('register.html', {root: public_dir});
 });
 
-app.get('/home', validation.Authenticate, async (req, res) => {
+app.get('/home', validation.Authenticate, async (req, res, next) => {
     try {
-        let [task_data] = await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id]);
+        
+        let task_data = (await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id])).rows;
         res.render('home', {user: req.userdata.username, task_data: task_data});
     } catch(err) {
         next(err);

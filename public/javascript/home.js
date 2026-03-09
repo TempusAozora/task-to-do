@@ -166,7 +166,7 @@ function timeToStr(time) {
 
 function OnSubmit(e) {
     e.preventDefault();
-
+    
     const name = document.getElementById("taskName").value;
     const desc = document.getElementById("taskDesc").value;
 
@@ -206,10 +206,12 @@ socket.onmessage("error", (payload) => {
 })
 
 // load tasks
-window.task_data.forEach(task => {
-    const newTask = new Task(task.task_name, task.task_description, task.task_time, task.task_uuid, task.is_running);
-    task_dictionary[task.task_uuid] = newTask
-});
+if (window.task_data) {
+    window.task_data.forEach(task => {
+        const newTask = new Task(task.name, task.description, task.time, task.uuid, task.is_running);
+        task_dictionary[task.uuid] = newTask
+    });
+}
 
 document.getElementById("taskForm").addEventListener("submit", function(e) {
     OnSubmit(e);
