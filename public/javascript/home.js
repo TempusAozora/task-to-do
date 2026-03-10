@@ -7,7 +7,11 @@ class web_socket {
         this.#callbacks = {};
 
         this.#socket.onopen = () => console.log("Connected to websocket");
-        this.#socket.onclose = () => console.log("Disconnected to websocket");
+        this.#socket.onclose = () => {
+            console.log("Disconnected to websocket. Reconnecting")
+            this.#socket = new WebSocket(uri);
+            this.#heartbeat()
+        };
         this.#socket.onerror = (err) => console.error("Error:", err);
         this.#socket.onmessage = (event) => {
             const { type, payload } = JSON.parse(event.data);
@@ -15,6 +19,14 @@ class web_socket {
                 this.#callbacks[type].forEach(fn => fn(payload))
             }
         }
+
+        this.#heartbeat()
+    }
+
+    #heartbeat() {
+        if (this.#socket?.readyState !== 1) return;
+        send("heartbeat");
+        setTimeout(this.#heartbeat, 10000);
     }
 
     onmessage(type, callback) {

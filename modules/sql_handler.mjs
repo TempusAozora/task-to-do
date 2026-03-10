@@ -14,6 +14,13 @@ export const sql_pool = new Pool(process.env.DB_URL ?
     }
 )
 
+
+const now_utc = "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')"
+const time_if_running = `(
+    CASE WHEN is_running = FALSE THEN time 
+    ELSE time + EXTRACT(EPOCH FROM (${now_utc} - timestamp))
+END)`
+
 export const sql_queries = {
     // authentication
     getUserData: `SELECT username, user_id, last_login FROM users WHERE session_id = $1;`,
@@ -23,10 +30,7 @@ export const sql_queries = {
     getTaskData: `SELECT name, 
                     sort_order, 
                     description, 
-                    (
-                        CASE WHEN is_running = FALSE THEN time 
-                        ELSE time + EXTRACT(EPOCH FROM ((SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - timestamp))
-                    END) AS time,  
+                    ${time_if_running} AS time,  
                     uuid,
                     is_running
                     FROM task_list 
@@ -37,22 +41,27 @@ export const sql_queries = {
     // insert data
     registerUser: `INSERT INTO users (username, hash_password) VALUES ($1, $2);`,
 
-        // send task data to database and increment by order
-        // Generates UUID on a task for easier identification
-    createTask: `INSERT INTO task_list (user_id, sort_order, name, description, uuid) 
-                VALUES ($1, (SELECT * FROM (SELECT COALESCE(MAX(sort_order), 0) FROM task_list WHERE user_id = $2) AS X)+1, $3, $4, $5);`,
+    // create new task in task_list and initialize task data in task_data
+    createTask: `WITH new_task AS (
+                    INSERT INTO task_list (user_id, name, description) 
+                    VALUES ($1, $2, $3)
+                    RETURNING uuid
+                )
+                INSERT INTO task_data (uuid)
+                VALUES ((SELECT uuid FROM new_task));`,
 
-                
     // update data
-    updateSessionID: `UPDATE users SET session_id = $1, last_login = (SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC') WHERE user_id = $2;`,
+    updateSessionID: `UPDATE users SET session_id = $1, last_login = ${now_utc} WHERE user_id = $2;`,
 
          // this query acts like a stopwatch for the task. utc_timestamp makes it consistent for different time zones.
-    toggleTask: `UPDATE task_list
-                SET timestamp = (CASE WHEN is_running = FALSE THEN (SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC') ELSE timestamp END),
-                    time = (
-                        CASE WHEN is_running = FALSE THEN time 
-                        ELSE time + EXTRACT(EPOCH FROM ((SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC') - timestamp))
-                    END),
-                    is_running = NOT is_running
+    toggleTask: `WITH updated_time AS (
+                    UPDATE task_list SET 
+                        timestamp = (CASE WHEN is_running = FALSE THEN ${now_utc} ELSE timestamp END),
+                        time = ${time_if_running},
+                        is_running = NOT is_running
+                    WHERE uuid = $1
+                    RETURNING time
+                )
+                UPDATE task_data SET time = (SELECT time FROM updated_time)
                 WHERE uuid = $1;`
 }

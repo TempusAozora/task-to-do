@@ -42,7 +42,6 @@ app.get('/register', validation.redirectIfAuth, (req, res) => {
 
 app.get('/home', validation.Authenticate, async (req, res, next) => {
     try {
-        
         let task_data = (await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id])).rows;
         res.render('home', {user: req.userdata.username, task_data: task_data});
     } catch(err) {
@@ -85,14 +84,16 @@ function create_response(type, payload) {
 wss.on('connection', function(ws, req) {
     ws.on('error', console.error);
 
-    console.log(req.userdata.username + " client connected");
+    req.connect_count = (req.connect_count || 0) + 1
+    const connect_msg = (req.connect_count > 1) ? "reconnected" : "connected"
+    console.log(`${(new Date()).toUTCString()} ${req.userdata.username} ${connect_msg} (${req.connect_count})`);
     
     ws.on('message', async function(data) {
         const {type, payload} = JSON.parse(data.toString())
 
         // If type is valid
-        const valid_types = {createTask: true, toggleTask: true}
-        if (!valid_types[type]) {
+        const valid_types = new Set(["createTask", "toggleTask", "heartbeat"])
+        if (!valid_types.has(type)) {
             const response = create_response("error", {message: "websocket message is not valid"})
             return ws.send(response);
         }
@@ -103,13 +104,14 @@ wss.on('connection', function(ws, req) {
         if (type === "createTask") {
             // validate name and description (WIP)
             const uuid = randomUUID()
-            await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, req.userdata.user_id, payload.name, payload.description, uuid])
+            await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])
             response = create_response(type, {status: 200, uuid: uuid, name: payload.name, description: payload.description})
-
         } else if (type === "toggleTask") {
             // reduce request (WIP)
             await sql_pool.query(sql_queries.toggleTask, [payload.uuid])
             response = create_response(type, {status: 200, uuid: payload.uuid})
+        } else if (type === "heartbeat") {
+            return
         }
 
         ws.send(response)
