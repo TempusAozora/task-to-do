@@ -1,32 +1,51 @@
+function is_binary(obj) {
+    return typeof obj === 'object' && Object.prototype.toString.call(obj) === '[object Blob]'; 
+}
+
 class web_socket {
     #socket;
     #callbacks;
     
     constructor(uri) {
+        this.HEARTBEAT_TIMEOUT, this.HEARTBEAT_VALUE;
+
         this.#socket = new WebSocket(uri);
         this.#callbacks = {};
 
         this.#socket.onopen = () => console.log("Connected to websocket");
         this.#socket.onclose = () => {
-            console.log("Disconnected to websocket. Reconnecting")
-            this.#socket = new WebSocket(uri);
-            this.#heartbeat()
+            console.log("Disconnected to websocket")
+            if (!!this.#socket.custom_ping_timeout) {
+                clearTimeout(this.#socket.custom_ping_timeout);
+            }
         };
+        
         this.#socket.onerror = (err) => console.error("Error:", err);
         this.#socket.onmessage = (event) => {
+            if (is_binary(event.data)) {
+                return this.#heartbeat();
+            }
             const { type, payload } = JSON.parse(event.data);
             if (this.#callbacks[type]) {
                 this.#callbacks[type].forEach(fn => fn(payload))
             }
         }
-
-        this.#heartbeat()
     }
 
     #heartbeat() {
-        if (this.#socket?.readyState !== 1) return;
-        send("heartbeat");
-        setTimeout(this.#heartbeat, 10000);
+        if (!this.#socket) {
+            return;
+        } else if (!!this.#socket.custom_ping_timeout) {
+            clearTimeout(this.#socket.custom_ping_timeout)
+        }
+
+        this.#socket.custom_ping_timeout = setTimeout(() => {
+            this.#socket.close(); // if the socket is closed here, either the ping was very late or there was no ping from the server.
+        }, this.HEARTBEAT_TIMEOUT)
+
+        const data = new Uint8Array(1);
+        data[0] = this.HEARTBEAT_VALUE;
+        this.#socket.send(data);
     }
 
     onmessage(type, callback) {
@@ -215,6 +234,11 @@ socket.onmessage("toggleTask", (payload) => {
 
 socket.onmessage("error", (payload) => {
     console.error(payload.error);
+})
+
+socket.onmessage("connectionSuccess", (payload) => {
+    socket.HEARTBEAT_TIMEOUT = payload.HEARTBEAT_TIMEOUT,
+    socket.HEARTBEAT_VALUE = payload.HEARTBEAT_VALUE
 })
 
 // load tasks

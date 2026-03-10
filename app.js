@@ -1,12 +1,11 @@
 // node modules
 import express, { json, urlencoded } from 'express';
 import path, { join } from 'path';
-import { WebSocketServer } from 'ws';
-import { randomUUID } from 'crypto';
 
 // other modules
 import validation from './modules/validation.mjs';
 import { sql_queries, sql_pool } from './modules/sql_handler.mjs';
+import connectSocket from './modules/socket.mjs';
 
 // get public directory
 import { fileURLToPath } from 'url';
@@ -75,58 +74,5 @@ const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-// Web socket
-const wss = new WebSocketServer({noServer: true});
-function create_response(type, payload) {
-    return JSON.stringify({type, payload})
-}
-
-wss.on('connection', function(ws, req) {
-    ws.on('error', console.error);
-
-    req.connect_count = (req.connect_count || 0) + 1
-    const connect_msg = (req.connect_count > 1) ? "reconnected" : "connected"
-    console.log(`${(new Date()).toUTCString()} ${req.userdata.username} ${connect_msg} (${req.connect_count})`);
-    
-    ws.on('message', async function(data) {
-        const {type, payload} = JSON.parse(data.toString())
-
-        // If type is valid
-        const valid_types = new Set(["createTask", "toggleTask", "heartbeat"])
-        if (!valid_types.has(type)) {
-            const response = create_response("error", {message: "websocket message is not valid"})
-            return ws.send(response);
-        }
-
-        let response;
-        
-        // check for mysql queries error wip
-        if (type === "createTask") {
-            // validate name and description (WIP)
-            const uuid = randomUUID()
-            await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])
-            response = create_response(type, {status: 200, uuid: uuid, name: payload.name, description: payload.description})
-        } else if (type === "toggleTask") {
-            // reduce request (WIP)
-            await sql_pool.query(sql_queries.toggleTask, [payload.uuid])
-            response = create_response(type, {status: 200, uuid: payload.uuid})
-        } else if (type === "heartbeat") {
-            return
-        }
-
-        ws.send(response)
-    })
-})
-
-server.on('upgrade', async function(req, socket, head) {
-    const [is_session_id_valid, userdata] = await validation.getUserData(req)
-
-    if (is_session_id_valid) { // if session id is valid and at home page
-        wss.handleUpgrade(req, socket, head, (ws) => {
-            req.userdata = userdata
-            wss.emit('connection', ws, req); // accept connection
-        });
-    } else {
-        socket.destroy()
-    }
-})
+// Connect to web socket
+connectSocket(server)

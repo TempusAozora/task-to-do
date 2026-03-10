@@ -40,21 +40,14 @@ export const sql_queries = {
 
     // insert data
     registerUser: `INSERT INTO users (username, hash_password) VALUES ($1, $2);`,
-
-    // create new task in task_list and initialize task data in task_data
-    createTask: `WITH new_task AS (
-                    INSERT INTO task_list (user_id, name, description) 
-                    VALUES ($1, $2, $3)
-                    RETURNING uuid
-                )
-                INSERT INTO task_data (uuid)
-                VALUES ((SELECT uuid FROM new_task));`,
+    createTask: `INSERT INTO task_list (user_id, name, description) VALUES ($1, $2, $3) RETURNING uuid`,
 
     // update data
     updateSessionID: `UPDATE users SET session_id = $1, last_login = ${now_utc} WHERE user_id = $2;`,
 
-         // this query acts like a stopwatch for the task. utc_timestamp makes it consistent for different time zones.
-    toggleTask: `WITH updated_time AS (
+    // upsert data
+    // update task list and upsert task data
+    toggleTask: `WITH updated_task AS (
                     UPDATE task_list SET 
                         timestamp = (CASE WHEN is_running = FALSE THEN ${now_utc} ELSE timestamp END),
                         time = ${time_if_running},
@@ -62,6 +55,9 @@ export const sql_queries = {
                     WHERE uuid = $1
                     RETURNING time
                 )
-                UPDATE task_data SET time = (SELECT time FROM updated_time)
-                WHERE uuid = $1;`
+                INSERT INTO task_data (uuid, time)
+                VALUES ($1, (SELECT time FROM updated_task))
+                ON CONFLICT ON CONSTRAINT "unique_date_for_task" DO UPDATE
+                    SET time = (SELECT time FROM updated_task) 
+                    WHERE task_data.uuid = $1 AND task_data.date = ${now_utc}::DATE;`
 }
