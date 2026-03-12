@@ -27,6 +27,19 @@ function pong(ws, req) {
 export default function connectSocket(server) {
     const wss = new WebSocketServer({noServer: true});
 
+    server.on('upgrade', async function(req, socket, head) {
+        const [is_session_id_valid, userdata] = await validation.getUserData(req)
+
+        if (is_session_id_valid) { // if session id is valid and at home page
+            wss.handleUpgrade(req, socket, head, (ws) => {
+                req.userdata = userdata
+                wss.emit('connection', ws, req); // accept connection
+            });
+        } else {
+            socket.destroy()
+        }
+    })
+
     wss.on('connection', function(ws, req) {
         ws.on('error', console.error);
 
@@ -71,22 +84,9 @@ export default function connectSocket(server) {
             ws.send(response)
         })
 
-        ws.on('close', (event) => {
-            console.log(`${(new Date()).toUTCString()} ${req.userdata.username} disconnected. Close code: ${event}`)
+        ws.on('close', (event, reason) => {
+            console.log(`${(new Date()).toUTCString()} ${req.userdata.username} disconnected. Close code: ${event}. Reason: ${reason.toString()}`)
         })
-    })
-
-    server.on('upgrade', async function(req, socket, head) {
-        const [is_session_id_valid, userdata] = await validation.getUserData(req)
-
-        if (is_session_id_valid) { // if session id is valid and at home page
-            wss.handleUpgrade(req, socket, head, (ws) => {
-                req.userdata = userdata
-                wss.emit('connection', ws, req); // accept connection
-            });
-        } else {
-            socket.destroy()
-        }
     })
 
     const interval = setInterval(() => {

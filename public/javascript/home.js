@@ -13,8 +13,8 @@ class web_socket {
         this.#callbacks = {};
 
         this.#socket.onopen = () => console.log("Connected to websocket");
-        this.#socket.onclose = () => {
-            console.log("Disconnected to websocket")
+        this.#socket.onclose = (event) => {
+            console.log(`Disconnected to websocket. Code: ${event.code}. Reason: ${event.reason}`)
             if (!!this.#socket.custom_ping_timeout) {
                 clearTimeout(this.#socket.custom_ping_timeout);
             }
