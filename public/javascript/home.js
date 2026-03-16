@@ -84,6 +84,10 @@ class StopWatch {
         }
     }
 
+    force_stop() {
+        if (!!this.#timer) window.clearInterval(this.#timer);
+    }
+
     getCurrentTime(decimals=0) {
         if (decimals <= 0) {
             return Math.floor(this.#timestampTime + this.#elapsed)
@@ -123,20 +127,25 @@ class Task {
         })
     }
 
+    
     #setupHTML(name, desc, time) {
-        const container = document.getElementById('taskContainer');
+        const container = document.getElementsByClassName('tasks')[0];
         this.div = this.#elementCreator('div', 'task');
+        this.taskbody = this.#elementCreator('div', 'task-body')
 
-        const name_ = this.#elementCreator('h1', 'taskTitle truncate', name)
-        const description = this.#elementCreator('p', 'taskDescription truncate', desc)
+        const name_ = this.#elementCreator('h2', 'taskTitle task-name-desc-format', name)
+        const description = this.#elementCreator('p', 'taskDescription task-name-desc-format', desc)
         const progress_bar = this.#elementCreator('p', 'progress')
         const taskTime = this.#elementCreator('div', 'taskTime')
-
+        
+        this.task_config = this.#elementCreator("i", "fa-solid")
         this.elapsedTime = this.#elementCreator('div', null, timeToStr(Math.floor(time)))
         this.play_button = this.#elementCreator('i', "fa-solid")
+        this.task_config.uuid = this.uuid
 
-        this.#append([name_, description, progress_bar, taskTime], this.div)
-        this.#append([this.play_button, this.elapsedTime], taskTime)
+        this.#append([name_, description, progress_bar, taskTime], this.taskbody)
+        this.#append([this.task_config, this.taskbody], this.div)
+        this.#append([this.elapsedTime, this.play_button], taskTime)
         container.appendChild(this.div);
     };
 
@@ -146,14 +155,22 @@ class Task {
         this.#setupHTML(name, desc, time)
 
         this.stopwatch = new StopWatch(time)
+
         this.play_button.classList.toggle("fa-play")
         if (is_running) {
             this.toggle();
         }
+
+        if (remove_task_toggle) {
+            this.task_config.classList.toggle("fa-square")
+            this.task_config.addEventListener("click", onRemoveBoxClicked);
+        } else {
+            this.task_config.classList.toggle("fa-bars")
+        }
         
-        this.play_button.addEventListener("click", ()=>{
+        this.play_button.onclick = ()=>{
             socket.send("toggleTask", {uuid: this.uuid})
-        });
+        };
     };
 
     toggle() {
@@ -172,12 +189,15 @@ function logout() {
 };
 
 function createTask() {
-    document.getElementById("overlay").style.display = "flex";
+    document.getElementById("form-modal").style.display = "flex";
+    document.getElementById("overlay").style.display = "block";
 };
 
 function closeForm() {
+    document.getElementById("form-modal").style.display = "none";
     document.getElementById("overlay").style.display = "none";
 };
+
 
 function timeToStr(time) {
     let second = time % 60;
@@ -213,7 +233,58 @@ function OnSubmit(e) {
     closeForm();
 };
 
+function onRemoveBoxClicked(event) {
+    event.currentTarget.classList.toggle("fa-square")
+    event.currentTarget.classList.toggle("fa-square-check")
+    
+    if (tasksToBeRemoved.has(event.currentTarget.uuid)) {
+        tasksToBeRemoved.delete(event.currentTarget.uuid);
+    } else {
+        tasksToBeRemoved.add(event.currentTarget.uuid);
+    }
+}
+
+function removeMode() {
+    remove_task_toggle = !remove_task_toggle;
+    const display_mode = (remove_task_toggle) ? 'initial' : 'none';
+    document.getElementById("delete-button").style.display = display_mode;
+
+    for (const [uuid, task] of Object.entries(task_dictionary)) {
+        task.task_config.classList.toggle("fa-bars");
+        task.task_config.classList.toggle("fa-square")
+
+        if (remove_task_toggle) {
+            task.task_config.addEventListener("click", onRemoveBoxClicked);
+        } else {
+            if (tasksToBeRemoved.has(uuid)) {
+                task.task_config.classList.toggle("fa-square")
+                task.task_config.classList.toggle("fa-square-check")
+            }
+            task.task_config.removeEventListener("click", onRemoveBoxClicked);
+        }
+    }
+
+    tasksToBeRemoved.clear();
+}
+
+function deleteTasks() {
+    const t_uuid_array = Array.from(tasksToBeRemoved)
+    t_uuid_array.forEach(uuid => {
+        const task = task_dictionary[uuid];
+        task.stopwatch.force_stop();
+
+        task.div.remove();
+        task_dictionary[uuid] = undefined;
+        delete task_dictionary[uuid];
+    });
+
+    tasksToBeRemoved.clear();
+}
+
 const task_dictionary = {};
+
+let tasksToBeRemoved = new Set();
+let remove_task_toggle = false;
 
 const loc = window.location;
 let new_uri = (loc.protocol === "https:") ? "wss:" : "ws:";
@@ -222,7 +293,6 @@ new_uri += "//" + loc.host + loc.pathname;
 const socket = new web_socket(new_uri);
 
 socket.onmessage("createTask", (payload) => {
-    console.log("CREATE NEW TASKS")
     const newTask = new Task(payload.name, payload.description, 0, payload.uuid);
     task_dictionary[payload.uuid] = newTask;
 });
@@ -234,6 +304,10 @@ socket.onmessage("toggleTask", (payload) => {
 
 socket.onmessage("error", (payload) => {
     console.error(payload.error);
+})
+
+socket.onmessage("deleteTask", (payload) => {
+    if (payload.status === 200) deleteTasks();
 })
 
 socket.onmessage("connectionSuccess", (payload) => {
@@ -252,3 +326,8 @@ if (window.task_data) {
 document.getElementById("taskForm").addEventListener("submit", function(e) {
     OnSubmit(e);
 });
+
+document.getElementById('remove-task-button').onclick = removeMode
+document.getElementById('delete-button').onclick = () => {
+    socket.send("deleteTask", {tasks: Array.from(tasksToBeRemoved)})
+}

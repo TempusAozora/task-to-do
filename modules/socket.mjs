@@ -60,14 +60,15 @@ export default function connectSocket(server) {
             
             if (type === "createTask") {
                 // validate name and description (WIP)
+                let uuid;
                 try {
-                    const uuid = (await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])).rows[0];
+                    uuid = (await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])).rows[0];
                 } catch (error) {
                     // send error message wip
                     return handle_error(error)
                 }
                 
-                response = create_response(type, {status: 200, uuid: uuid, name: payload.name, description: payload.description})
+                response = create_response(type, {status: 200, uuid: payload.uuid, name: payload.name, description: payload.description})
             } else if (type === "toggleTask") {
                 // reduce request (WIP)
                 try {
@@ -77,6 +78,14 @@ export default function connectSocket(server) {
                     return handle_error(error)
                 }
                 response = create_response(type, {status: 200, uuid: payload.uuid})
+            } else if (type === "deleteTask") {
+                try {
+                    await sql_pool.query(sql_queries.deleteTask, [payload.tasks])
+                } catch (error) {
+                    // send error message wip
+                    return handle_error(error)
+                }
+                response = create_response(type, {status: 200})
             } else {
                 response = create_response("error", {message: "websocket message is not valid"})
             }

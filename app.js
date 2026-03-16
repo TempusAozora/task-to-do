@@ -26,35 +26,38 @@ app.use((req, res, next) => {
   next();
 });
 
-// GET
+// login
+app.route('/login')
+.get(validation.redirectIfAuth, (req, res) => {
+    res.sendFile('login.html', {root: public_dir})
+})
+.post(validation.inputLength, validation.login, async (req, res, next) => {
+    res.status(200).json({success: true, cookie: req.session_id, validity_duration: req.validity_duration});
+})
+
+// register
+app.route('/register')
+.get(validation.redirectIfAuth, (req, res) => {
+    res.sendFile('register.html', {root: public_dir});
+})
+.post(validation.inputLength, validation.usernameTaken, validation.register, async (req, res, next) => {
+    res.status(200).json({success: true});
+});
+
+// default
 app.get('/', validation.Authenticate, (req, res) => {
     res.redirect(`/home`);
 });
 
-app.get('/login', validation.redirectIfAuth, (req, res) => {
-    res.sendFile('login.html', {root: public_dir})
-});
-
-app.get('/register', validation.redirectIfAuth, (req, res) => {
-    res.sendFile('register.html', {root: public_dir});
-});
-
+// home
 app.get('/home', validation.Authenticate, async (req, res, next) => {
     try {
         let task_data = (await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id])).rows;
+        console.log(req.userdata.username)
         res.render('home', {user: req.userdata.username, task_data: task_data});
     } catch(err) {
         next(err);
     }
-});
-
-// POST
-app.post('/register', validation.inputLength, validation.usernameTaken, validation.register, async (req, res, next) => {
-    res.status(200).json({success: true});
-})
-
-app.post('/login', validation.inputLength, validation.login, async (req, res, next) => {
-    res.status(200).json({success: true, cookie: req.session_id, validity_duration: req.validity_duration});
 });
 
 // 404 not found page.

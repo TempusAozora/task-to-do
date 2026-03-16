@@ -13,7 +13,7 @@ body {
     font-family: "Poppins", sans-serif;
     font-weight: 700;
     font-style: normal;
-    color: #10F2D0;
+    color: #ccc/*#10F2D0*/;
     /* */
 
     display: flex;
@@ -63,7 +63,7 @@ body {
     padding: 10px;
     width: 250px;
     border-radius: 5px;
-    color:#10F2D0;
+    color:#ccc/*#10F2D0*/;
 }
 
 .main-container .right-content .components #submit {

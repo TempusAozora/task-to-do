@@ -29,46 +29,44 @@ html(lang="en")
       rel="stylesheet"
       )
   body
-    section.container
-      header
-        .header-content
-          .profile
-            span.profile-icon-background
-              i.fa-solid.fa-user
-            h1.username #{user}
-          .logout-container
-            button.logout-button(onclick="logout()")
-              i.fa-solid.fa-arrow-right-from-bracket
-              | Logout
+    .ctnr
+      nav
+        h2 Task to do
+        .nav-right
+          i.fa-solid.fa-user
+          h3 !{user} 
+          p#logout.nav-button(onclick="logout()") logout
       .main-container
-        .left-content WORK IN PROGRESS
-        .right-content
-          .task-header
-            p
-            h1.task-header-text TASKS
-            button.createTask(onclick="createTask()") Add Task
-          #taskContainer.task-container
-          #overlay.overlayALL
-            .form-modal
-              button.close(onclick="closeForm()")
-                i.fa-solid.fa-x
-              .form
-                h2 CREATE TASK
-                form#taskForm
-                  .input-group
-                    label(for="taskName") TASK NAME
-                    input#taskName(
-                      placeholder="Enter task name" 
-                      required="" 
-                      type="text"
-                      )
-                  .input-group
-                    label(for="taskDesc") TASK DESCRIPTION
-                    textarea#taskDesc(
-                      required="" 
-                      rows="5"
-                      )
-                  button.submit-btn(type="submit") Add Task
-      script.
+        .task-data
+        .task-list
+          h1 Tasks
+          .configure-tasks
+            button(onclick="createTask()") +
+            button#remove-task-button
+              i.fa-solid.fa-trash
+          .tasks
+          .delete-container
+            button#delete-button delete
+      #overlay
+      #form-modal
+        button#closeForm(onclick="closeForm()")
+          i.fa-solid.fa-x
+        h2 CREATE TASK
+        form#taskForm
+          label(for="taskName") TASK NAME
+          input#taskName(
+            placeholder="task name" 
+            required="" 
+            type="text"
+            )
+          label(for="taskDesc") TASK DESCRIPTION
+          textarea#taskDesc(
+            placeholder="task description" 
+            required="" 
+            rows="7"
+            )
+          button#task-submit-btn.button-style.process-button-color(type="submit") Add Task
+      #confirmation
+  script.
         window.task_data = JSON.parse(`!{JSON.stringify(task_data)}`); // declare task_data as global variable
-      script(type='text/javascript' src="/javascript/home.js").
+  script(src="/javascript/home.js")
