@@ -18,7 +18,7 @@ export const sql_pool = new Pool(process.env.DB_URL ?
 const now_utc = "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamptz"
 const increment_if_running = `(
     CASE WHEN is_running = FALSE THEN 0
-    ELSE EXTRACT(EPOCH FROM (${now_utc} - ("timestamp" AT TIME ZONE 'UTC')))
+    ELSE EXTRACT(EPOCH FROM (${now_utc} - "timestamp"))
 END)`
 
 export const sql_queries = {
