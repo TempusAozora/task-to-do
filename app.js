@@ -45,7 +45,7 @@ app.route('/register')
 });
 
 // default
-app.get('/', validation.Authenticate, (req, res) => {
+app.get('/', (req, res) => {
     res.redirect(`/home`);
 });
 
@@ -53,7 +53,6 @@ app.get('/', validation.Authenticate, (req, res) => {
 app.get('/home', validation.Authenticate, async (req, res, next) => {
     try {
         let task_data = (await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id])).rows;
-        console.log(req.userdata.username)
         res.render('home', {user: req.userdata.username, task_data: task_data});
     } catch(err) {
         next(err);

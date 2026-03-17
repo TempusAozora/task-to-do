@@ -60,19 +60,18 @@ export default function connectSocket(server) {
             
             if (type === "createTask") {
                 // validate name and description (WIP)
-                let uuid;
+                let returned_values;
                 try {
-                    uuid = (await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])).rows[0];
+                    returned_values = (await sql_pool.query(sql_queries.createTask, [req.userdata.user_id, payload.name, payload.description])).rows[0];
                 } catch (error) {
                     // send error message wip
                     return handle_error(error)
                 }
-                
-                response = create_response(type, {status: 200, uuid: payload.uuid, name: payload.name, description: payload.description})
+                response = create_response(type, {status: 200, uuid: returned_values.uuid, name: payload.name, description: payload.description})
             } else if (type === "toggleTask") {
                 // reduce request (WIP)
                 try {
-                    await sql_pool.query(sql_queries.toggleTask, [payload.uuid])
+                    await sql_pool.query(sql_queries.toggleTask, [payload.uuid, payload.timezone])
                 } catch (error) {
                     // send error message wip
                     return handle_error(error)

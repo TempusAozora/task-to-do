@@ -169,7 +169,10 @@ class Task {
         }
         
         this.play_button.onclick = ()=>{
-            socket.send("toggleTask", {uuid: this.uuid})
+            socket.send("toggleTask", {
+                uuid: this.uuid,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            })
         };
     };
 
