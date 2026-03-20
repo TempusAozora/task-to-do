@@ -133,8 +133,8 @@ class Task {
         this.div = this.#elementCreator('div', 'task');
         this.taskbody = this.#elementCreator('div', 'task-body')
 
-        const name_ = this.#elementCreator('h2', 'taskTitle task-name-desc-format', name)
-        const description = this.#elementCreator('p', 'taskDescription task-name-desc-format', desc)
+        this.name = this.#elementCreator('h2', 'taskTitle task-name-desc-format', name)
+        this.description = this.#elementCreator('p', 'taskDescription task-name-desc-format', desc)
         const progress_bar = this.#elementCreator('p', 'progress')
         const taskTime = this.#elementCreator('div', 'taskTime')
         
@@ -143,7 +143,7 @@ class Task {
         this.play_button = this.#elementCreator('i', "fa-solid")
         this.task_config.uuid = this.uuid
 
-        this.#append([name_, description, progress_bar, taskTime], this.taskbody)
+        this.#append([this.name, this.description, progress_bar, taskTime], this.taskbody)
         this.#append([this.task_config, this.taskbody], this.div)
         this.#append([this.elapsedTime, this.play_button], taskTime)
         container.appendChild(this.div);
@@ -170,9 +170,14 @@ class Task {
         
         this.play_button.onclick = ()=>{
             socket.send("toggleTask", {
+                
                 uuid: this.uuid,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             })
+        };
+
+        this.taskbody.onclick = function() {  
+            refreshData(uuid);
         };
     };
 
@@ -319,8 +324,8 @@ socket.onmessage("connectionSuccess", (payload) => {
 })
 
 // load tasks
-if (window.task_data) {
-    window.task_data.forEach(task => {
+if (window.task_list) {
+    window.task_list.forEach(task => {
         const newTask = new Task(task.name, task.description, task.time, task.uuid, task.is_running);
         task_dictionary[task.uuid] = newTask
     });

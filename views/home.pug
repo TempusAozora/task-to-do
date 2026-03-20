@@ -38,6 +38,17 @@ html(lang="en")
           p#logout.nav-button(onclick="logout()") logout
       .main-container
         .task-data
+          .day-spans
+            button#at(onclick="change_span(-1)") All time
+            button#1y(onclick="change_span(365)") 1y
+            button#1m(onclick="change_span(30)") 1m
+            button#7d(onclick="change_span(7)") 7d
+          div(id="column_chart")
+          div
+            h1#task-data-name
+            p#task-data-description
+            br
+            p#avg-time
         .task-list
           h1 Tasks
           .configure-tasks
@@ -68,5 +79,8 @@ html(lang="en")
           button#task-submit-btn.button-style.process-button-color(type="submit") Add Task
       #confirmation
   script.
-        window.task_data = JSON.parse(`!{JSON.stringify(task_data)}`); // declare task_data as global variable
+        window.task_list = JSON.parse(`!{JSON.stringify(task_list)}`); // declare task_data as global variable
+        window.task_data = JSON.parse(`!{JSON.stringify(task_data)}`);
   script(src="/javascript/home.js")
+  script(type="text/javascript" src="https://www.gstatic.com/charts/loader.js")
+  script(type="text/javascript" src="/javascript/task_data.js")

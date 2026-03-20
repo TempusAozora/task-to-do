@@ -17,7 +17,7 @@ export const sql_pool = new Pool(process.env.DB_URL ?
 
 const now_utc = "(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::timestamptz"
 const increment_if_running = `(
-    CASE WHEN is_running = FALSE THEN 0
+    CASE WHEN tl.is_running = FALSE THEN 0
     ELSE EXTRACT(EPOCH FROM (${now_utc} - ("timestamp" AT TIME ZONE 'UTC')::timestamptz))
 END)`
 
@@ -27,16 +27,22 @@ export const sql_queries = {
     checkUsername: `SELECT user_id FROM users WHERE username = $1;`,
 
     // get data
-    getTaskData: `SELECT name, 
-                    sort_order, 
-                    description, 
-                    task_data.t_time + ${increment_if_running} AS time,  
-                    task_list."uuid",
-                    is_running
-                FROM task_list
-                FULL JOIN task_data ON task_list."uuid" = task_data."uuid" AND task_data."date" = ${now_utc}::date
+    getTaskList: `SELECT tl.name, 
+                    tl.sort_order, 
+                    tl.description, 
+                    td.t_time + ${increment_if_running} AS time,  
+                    tl."uuid",
+                    tl.is_running
+                FROM task_list tl
+                FULL JOIN task_data td ON tl."uuid" = td."uuid" AND td."date" = ${now_utc}::date
                 WHERE user_id = $1
                 ORDER BY sort_order ASC`, // one statement
+    getTaskData: `SELECT tl."uuid", td."date", td.t_time AS time
+                FROM task_data td
+                INNER JOIN task_list tl on tl.uuid = td.uuid
+                INNER JOIN users u on u.user_id = tl.user_id
+                WHERE u.user_id = $1
+                ORDER BY td."date" DESC`,
     getPasswordHashed: `SELECT hash_password, user_id FROM users WHERE username = $1;`,
 
     // insert data

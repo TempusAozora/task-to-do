@@ -229,6 +229,28 @@ nav h2 {
     margin-bottom: 10px;
 }
 
+.task-data {
+    display: grid;
+    grid-template-rows: .1fr .5fr .4fr;
+}
+
+.task-data .day-spans {
+    align-content: center;
+    text-align: right;
+}
+
+.task-data .day-spans button {
+    padding: 0 .5rem;
+    height: 50%;
+    border-radius: var(--border-radius);
+}
+
+#line_chart {
+    width: 95%; 
+    min-height: 50%;
+    justify-self: center;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translate(-50%, -60%); }
     to { opacity: 1; transform: translate(-50%, -50%); }

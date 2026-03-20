@@ -52,8 +52,9 @@ app.get('/', (req, res) => {
 // home
 app.get('/home', validation.Authenticate, async (req, res, next) => {
     try {
+        let task_list = (await sql_pool.query(sql_queries.getTaskList, [req.userdata.user_id])).rows;
         let task_data = (await sql_pool.query(sql_queries.getTaskData, [req.userdata.user_id])).rows;
-        res.render('home', {user: req.userdata.username, task_data: task_data});
+        res.render('home', {user: req.userdata.username, task_list: task_list, task_data: task_data});
     } catch(err) {
         next(err);
     }
