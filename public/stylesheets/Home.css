@@ -237,6 +237,7 @@ nav h2 {
 .task-data .day-spans {
     align-content: center;
     text-align: right;
+    min-height: 3rem;
 }
 
 .task-data .day-spans button {

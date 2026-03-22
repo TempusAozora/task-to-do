@@ -1,7 +1,6 @@
 {
   "name": "testing",
   "version": "1.0.0",
-  "description": "",
   "license": "ISC",
   "author": "",
   "type": "module",
@@ -18,5 +17,15 @@
     "pg": "^8.20.0",
     "pug": "^3.0.3",
     "ws": "^8.19.0"
-  }
+  },
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TempusAozora/task-to-do.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TempusAozora/task-to-do/issues"
+  },
+  "homepage": "https://github.com/TempusAozora/task-to-do#readme",
+  "description": ""
 }
